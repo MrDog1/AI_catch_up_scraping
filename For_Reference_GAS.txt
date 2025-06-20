@@ -1,0 +1,71 @@
+/*************************************************************
+ * 設定情報 (Constants and Configuration)
+ *************************************************************/
+// スクリプトプロパティ
+const SHEET_ID = PropertiesService.getScriptProperties().getProperty("SheetID");
+const OPENAI_API_KEY = PropertiesService.getScriptProperties().getProperty("OpenAIAPIkey");
+
+// 処理定数
+const THREADS_PER_EXEC = 5;   // 一回の実行で処理する最大スレッド数
+const ROWS_PER_EXEC = 15;     // 一回の実行で処理する最大行数
+const MAX_EXECUTION_TIME = 4 * 60 * 1000; // 4分（6分の制限に余裕を持たせる）
+
+// シート名
+const MAIN_SHEET_NAME = "Main";  // メインシート名
+const ERROR_SHEET_NAME = "Error";  // エラーシート名
+
+// 列構造（統一・整理）
+const COLUMNS = {
+  TIMESTAMP: 1,      // A: 日付/タイムスタンプ
+  FINAL_URL: 2,      // B: リダイレクト後の最終URL
+  CONTENT: 3,        // C: 記事内容/要約
+  STATUS: 4,         // D: 処理ステータス
+  ERROR_STATUS: 5,   // E: 追加ステータス（エラー用）
+  KEYWORDS: 6,       // F: 抽出キーワード（該当する場合）
+  FLOW_STATUS: 7,    // G: 記事フローステータス
+  TERMS: 8,          // H: 説明付き抽出用語
+  GENRE: 9,          // I: ジャンル分類
+  HISTORY: 10,       // J: URL履歴/メタデータ
+  TYPE: 11           // K: URLタイプ（HTML、PDFなど）
+};
+
+// ステータス値
+const STATUS = {
+  PENDING: "PENDING",
+  PROCESSING: "PROCESSING",
+  DONE: "DONE",
+  ERROR: "ERROR",
+  STEP1: "Step1/2",
+  ERROR_TEXT_FETCHING: "（本文が取得できませんでした）",
+  ERROR_SUMMARY: "（要約に失敗しました）"
+};
+
+// ログ設定
+const LOG_ENABLED = true;
+
+/*************************************************************
+ * ログユーティリティ関数 (Logging Utility Functions)
+ *************************************************************/
+function logInfo(message) {
+  if (LOG_ENABLED) {
+    console.log(`[INFO] ${new Date().toISOString()}: ${message}`);
+  }
+}
+
+function logWarning(message) {
+  if (LOG_ENABLED) {
+    console.warn(`[WARNING] ${new Date().toISOString()}: ${message}`);
+  }
+}
+
+function logError(message) {
+  if (LOG_ENABLED) {
+    console.error(`[ERROR] ${new Date().toISOString()}: ${message}`);
+  }
+}
+
+/*************************************************************
+ * GAS Reference Implementation
+ * This file contains the complete Google Apps Script implementation
+ * that the Python version aims to replicate with full compatibility.
+ *************************************************************/

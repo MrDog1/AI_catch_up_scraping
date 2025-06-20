@@ -22,7 +22,12 @@ class Config:
     
     def __init__(self, config_file: str = "config.json"):
         """Initialize configuration."""
-        self.config_file = Path(config_file)
+        # Always look for config.json in the parent directory (project root)
+        if not Path(config_file).is_absolute():
+            project_root = Path(__file__).parent.parent
+            self.config_file = project_root / config_file
+        else:
+            self.config_file = Path(config_file)
         self.config_data = {}
         self.load_config()
     
@@ -143,124 +148,53 @@ class Config:
         except IOError as e:
             print(f"Error saving config: {e}")
     
+    def get_credentials_path(self):
+        """Get the full path to credentials file."""
+        credentials_path = self.get('google_sheets', 'credentials_path')
+        if not credentials_path:
+            return None
+        
+        # If relative path, resolve from project root
+        if not os.path.isabs(credentials_path):
+            project_root = Path(__file__).parent.parent
+            return str(project_root / credentials_path)
+        return credentials_path
+    
     def create_sample_config(self):
         """Create a sample configuration file."""
         sample_config = {
             "google_sheets": {
                 "sheet_id": "YOUR_GOOGLE_SHEET_ID_HERE",
-                "credentials_path": "Credential.json"
+                "credentials_path": "Credential_ver2.json"
             },
             "api_keys": {
                 "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
-                "openai_api_key": "YOUR_OPENAI_API_KEY_HERE"
+                "openai_api_key": "YOUR_OPENAI_API_KEY_HERE (optional)"
             },
-            "processing": {
-                "max_urls_per_batch": 20,
-                "request_delay": 1,
-                "timeout_seconds": 30,
-                "max_retries": 3
-            },
-            "scraping": {
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "skip_domains": ["go.gale.com"],
-                "pdf_placeholder": "[PDF Document - Content available but text extraction is limited]"
-            },
-            "logging": {
-                "level": "INFO",
-                "file": "scraping.log",
-                "max_size_mb": 10
-            }
+            "processing": self.config_data.get("processing", {}),
+            "scraping": self.config_data.get("scraping", {}),
+            "logging": self.config_data.get("logging", {})
         }
         
-        sample_file = Path("config.sample.json")
-        try:
-            with open(sample_file, 'w', encoding='utf-8') as f:
-                json.dump(sample_config, f, indent=2, ensure_ascii=False)
-            print(f"Sample configuration created: {sample_file}")
-            print("Copy this to config.json and fill in your credentials.")
-        except IOError as e:
-            print(f"Error creating sample config: {e}")
-    
-    def validate_config(self) -> Dict[str, bool]:
-        """Validate that required configuration is present."""
-        credentials_path = self.get("google_sheets", "credentials_path", default="Credential.json")
-        validation = {
-            "google_sheet_id": bool(self.get("google_sheets", "sheet_id")),
-            "credentials_file": Path(credentials_path).exists() if credentials_path else False,
-            "gemini_api_key": bool(self.get("api_keys", "gemini_api_key")),
-        }
-        
-        validation["all_valid"] = all(validation.values())
-        return validation
-    
-    def print_status(self):
-        """Print configuration status."""
-        validation = self.validate_config()
-        
-        print("Configuration Status:")
-        print("=" * 40)
-        print(f"Google Sheet ID: {'✓' if validation['google_sheet_id'] else '✗'}")
-        print(f"Credentials file: {'✓' if validation['credentials_file'] else '✗'}")
-        print(f"Gemini API key: {'✓' if validation['gemini_api_key'] else '✗'}")
-        print(f"Overall: {'✓ READY' if validation['all_valid'] else '✗ INCOMPLETE'}")
-        
-        if not validation['all_valid']:
-            print("\nTo fix:")
-            if not validation['google_sheet_id']:
-                print("- Set GOOGLE_SHEET_ID environment variable or add to config.json")
-            if not validation['credentials_file']:
-                credentials_path = self.get("google_sheets", "credentials_path", default="Credential.json")
-                print(f"- Download Google credentials file to {credentials_path}")
-            if not validation['gemini_api_key']:
-                print("- Set GEMINI_API_KEY environment variable or add to config.json")
+        sample_path = self.config_file.parent / "config.sample.json"
+        with open(sample_path, 'w', encoding='utf-8') as f:
+            json.dump(sample_config, f, indent=2, ensure_ascii=False)
+        print(f"Sample configuration created at: {sample_path}")
 
-# Global configuration instance
-config = Config()
-
-def get_column_mapping():
-    """Get the column mapping used throughout the application."""
-    return {
-        'TIMESTAMP': 1,      # A: 日付/タイムスタンプ
-        'FINAL_URL': 2,      # B: リダイレクト後の最終URL
-        'CONTENT': 3,        # C: 記事内容/要約
-        'STATUS': 4,         # D: 処理ステータス
-        'ERROR_STATUS': 5,   # E: 追加ステータス（エラー用）
-        'KEYWORDS': 6,       # F: 抽出キーワード（該当する場合）
-        'FLOW_STATUS': 7,    # G: 記事フローステータス
-        'TERMS': 8,          # H: 説明付き抽出用語
-        'GENRE': 9,          # I: ジャンル分類
-        'HISTORY': 10,       # J: URL履歴/メタデータ
-        'TYPE': 11           # K: URLタイプ（HTML、PDFなど）
-    }
 
 def get_status_values():
-    """Get the status values used throughout the application."""
+    """Get GAS-compatible status values."""
     return {
-        'PENDING': "PENDING",
-        'PROCESSING': "PROCESSING",
-        'DONE': "DONE",
-        'ERROR': "ERROR",
-        'STEP1': "Step1/2",
-        'ERROR_TEXT_FETCHING': "（本文が取得できませんでした）",
-        'ERROR_SUMMARY': "（要約に失敗しました）"
+        "STATUS_TODO": "ToScrape",
+        "STATUS_SCRAPED": "Scraped",
+        "STATUS_ERROR": "Error",
+        "STATUS_SUMMARIZED": "Summarized",
+        "STATUS_NO_URL": "No URL",
+        "STATUS_NO_CONTENT": "No Content",
+        "STATUS_TIMEOUT": "Timeout",
+        "STATUS_ARCHIVED": "Archived"
     }
 
-if __name__ == "__main__":
-    # CLI for configuration management
-    import sys
-    
-    if len(sys.argv) > 1:
-        command = sys.argv[1].lower()
-        
-        if command == "status":
-            config.print_status()
-        elif command == "sample":
-            config.create_sample_config()
-        elif command == "validate":
-            validation = config.validate_config()
-            print(f"Configuration is {'valid' if validation['all_valid'] else 'invalid'}")
-            sys.exit(0 if validation['all_valid'] else 1)
-        else:
-            print("Usage: python config.py [status|sample|validate]")
-    else:
-        config.print_status()
+
+# Create global config instance
+config = Config()

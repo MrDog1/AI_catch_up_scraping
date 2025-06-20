@@ -1,0 +1,28 @@
+{
+  "google_sheets": {
+    "sheet_id": "",
+    "credentials_path": "Credential_ver2.json"
+  },
+  "api_keys": {
+    "gemini_api_key": ""
+  },
+  "processing": {
+    "max_urls_per_batch": 5,
+    "request_delay": 2,
+    "timeout_seconds": 30,
+    "max_execution_time_minutes": 4,
+    "rows_per_exec": 15
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "scraping.log"
+  },
+  "scraping": {
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "skip_domains": [
+      "localhost",
+      "127.0.0.1"
+    ],
+    "pdf_placeholder": "[PDF Document - Content available but text extraction is limited]"
+  }
+}
